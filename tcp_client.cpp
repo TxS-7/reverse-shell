@@ -1,8 +1,9 @@
 #include <string.h> // memset
 #include <unistd.h> // close
 #include <netdb.h> // getaddrinfo, freeaddrinfo
-#include <sys/socket.h> // socket
+#include <sys/socket.h> // socket, connect
 #include <arpa/inet.h> // htons, inet_pton
+#include <netinet/in.h> // sockaddr_in
 #include "tcp_client.h"
 
 int TCPClient::establishConnection() {

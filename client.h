@@ -5,6 +5,7 @@ class Client {
 public:
 	Client(char *, int);
 	virtual ~Client();
+
 	int start();
 	virtual int establishConnection() = 0;
 protected:
